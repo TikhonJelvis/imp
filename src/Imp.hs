@@ -2,16 +2,14 @@ module Imp where
 
 -- | The int parameter makes it easy to create new versions of a
 -- variable.
-data Name = Name Int String deriving (Eq)
+newtype Name = Name String deriving (Eq, Ord)
 
-instance Show Name where
-  show (Name n name) = name ++ "_" ++ show n
+instance Show Name where show (Name s) = s
+
+at :: Name -> Int -> Name
+at (Name str) step = Name $ str ++ "_" ++ show step
 
 type Scope = [(Name, Int)]
-
--- | Create a new version of the variable with the given name.
-newName :: Name -> Name
-newName (Name n name) = Name (n + 1) name
 
 data AExp = Lit Int
           | Var Name
