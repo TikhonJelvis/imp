@@ -21,6 +21,7 @@ library
   -- other-extensions:    
   build-depends:       base
                      , containers
+                     , parsec
                      , z3
   hs-source-dirs:      src
   default-language:    Haskell2010

@@ -42,11 +42,11 @@ bexp scope = \case
   e_1 :<=: e_2 -> op Z3.mkLe (aexp scope e_1) (aexp scope e_2)
   e_1 :==: e_2 -> op Z3.mkEq (aexp scope e_1) (aexp scope e_2)
   b_1 :|: b_2  -> do b_1 <- bexp scope b_1
-                    b_2 <- bexp scope b_2
-                    Z3.mkOr [b_1, b_2]
+                     b_2 <- bexp scope b_2
+                     Z3.mkOr [b_1, b_2]
   b_1 :&: b_2  -> do b_1 <- bexp scope b_1
-                    b_2 <- bexp scope b_2
-                    Z3.mkAnd [b_1, b_2]
+                     b_2 <- bexp scope b_2
+                     Z3.mkAnd [b_1, b_2]
   Not b        -> Z3.mkNot =<< bexp scope b
 
 

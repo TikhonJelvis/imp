@@ -4,12 +4,12 @@ let
 
   inherit (nixpkgs) pkgs;
 
-  f = { mkDerivation, base, stdenv, z3, containers }:
+  f = { mkDerivation, base, stdenv, z3, containers, parsec }:
       mkDerivation {
         pname = "imp";
         version = "0.1.0.0";
         src = ./.;
-        libraryHaskellDepends = [ base z3 containers ];
+        libraryHaskellDepends = [ base z3 containers parsec ];
         description = "Stuff for playing around with IMP programs";
         license = stdenv.lib.licenses.bsd3;
       };
