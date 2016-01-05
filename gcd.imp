@@ -1,0 +1,7 @@
+a := 48
+b := 18
+d := 0
+
+while (a / 2 * 2 == a) && ((b / 2 * 2 == b)) { a := a / 2; b := b / 2; d := d + 1 }
+
+while !(a == b) { if a / 2 * 2 == a { a := a / 2  } else { if b / 2 * 2 == b { b := b / 2 } else { if b <= (a - 1) { a := (a - b) / 2 } else { b := (b - a) / 2 }  }  }  }
