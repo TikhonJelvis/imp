@@ -33,6 +33,7 @@ aexp scope = \case
   e_1 :+: e_2 -> op Z3.mkBvadd (aexp scope e_1) (aexp scope e_2)
   e_1 :-: e_2 -> op Z3.mkBvsub (aexp scope e_1) (aexp scope e_2)
   e_1 :*: e_2 -> op Z3.mkBvmul (aexp scope e_1) (aexp scope e_2)
+  e_1 :/: e_2 -> op Z3.mkBvsdiv (aexp scope e_1) (aexp scope e_2)
 
 
 bexp :: Vars -> BExp -> Z3 AST
