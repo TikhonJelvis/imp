@@ -2,7 +2,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 module ImpToZ3 where
 
-import           Control.Monad (join)
+import           Control.Monad (foldM)
 
 import           Data.Map      (Map)
 import qualified Data.Map      as Map
@@ -13,7 +13,7 @@ import qualified Z3.Monad      as Z3
 
 import           Imp
 
-data Z3Var = Z3Var { step :: Int, ast :: AST }
+type Z3Var = AST
 
 type Vars = Map Name Z3Var
 
@@ -29,7 +29,7 @@ op f a b = do a' <- a; b' <- b; f a' b'
 aexp :: Vars -> AExp -> Z3 AST
 aexp scope = \case
   Lit n       -> Z3.mkBvNum width n
-  Var name    -> return . ast . fromJust $ Map.lookup name scope
+  Var name    -> return . fromJust $ Map.lookup name scope
   e_1 :+: e_2 -> op Z3.mkBvadd (aexp scope e_1) (aexp scope e_2)
   e_1 :-: e_2 -> op Z3.mkBvsub (aexp scope e_1) (aexp scope e_2)
   e_1 :*: e_2 -> op Z3.mkBvmul (aexp scope e_1) (aexp scope e_2)
@@ -50,15 +50,40 @@ bexp scope = \case
                      Z3.mkAnd [b_1, b_2]
   Not b        -> Z3.mkNot =<< bexp scope b
 
+cmd :: Bound -> Vars -> Cmd -> Z3 Vars
+cmd bound scope = \case
+  Skip            -> return scope
+  Set name val    -> do newVal <- aexp scope val
+                        newVar <- Z3.mkFreshBvVar (show name) width
+                        constraint <- Z3.mkEq newVar newVal
+                        Z3.assert constraint
+                        return $ Map.insert name newVar scope
+  Seq c_1 c_2     -> do scope'  <- cmd (bound - 1) scope c_1
+                        scope'' <- cmd (bound - 1) scope' c_2
+                        return scope''
+  If cond c_1 c_2 -> do cond' <- bexp scope cond
+                        scope' <- cmd (bound - 1) scope c_1
+                        scope'' <- cmd (bound - 1) scope c_2
+                        makePhis cond' scope scope' scope''
 
-cmd :: Vars -> Cmd -> Z3 Vars
-cmd scope = \case
-  Skip -> return scope
-  Set name val -> do newVal <- aexp scope val
-                     let Z3Var { step, ast } = getZ3Var name scope
-                     newVar <- Z3.mkFreshBvVar (show $ name `at` succ step) width
-                     constraint <- Z3.mkEq newVar newVal
-                     Z3.assert constraint
-                     return $ Map.insert name (Z3Var (succ step) newVar) scope
-  Seq c_1 c_2 -> do scope' <- cmd scope c_1
-                    cmd scope c_2
+-- | Encodes the result of a conditional by asserting new values for
+-- each variable depending on which branch was taken. Example:
+--
+--  y := 10;
+--  if cond { x := 1; y := y + 10 }
+--     else { y := y + 11; z := y }
+--
+--  x_1 = 1
+--  y_2 = y_1 + 10
+--  y_3 = y_ 1 + 11
+--  z_1 = y_3
+--  x_2 = ite(cond, x_1, x_0)
+--  y_4 = ite(cond,y_2, y_3)
+--  z_2 = ite(cond, z_0, z_1)
+makePhis :: AST -> Vars -> Vars -> Vars -> Z3 Vars
+makePhis cond original scope' scope'' = foldM go original $ Map.keys original
+  where go scope name = do
+          newVar <- Z3.mkFreshBvVar (show name) width
+          constraint <- Z3.mkIte cond (getZ3Var name scope') (getZ3Var name scope'')
+          Z3.assert constraint
+          return $ Map.insert name newVar scope
