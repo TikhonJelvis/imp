@@ -2,6 +2,7 @@ module Run where
 
 import Parse
 import Imp
+import qualified ImpToZ3 as Z3
 
 run :: String -> IO ()
 run input = case parseCmd "<interactive>" input of
