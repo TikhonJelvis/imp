@@ -2,7 +2,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 module ImpToZ3 where
 
-import           Control.Monad (foldM)
+import           Control.Monad (foldM, (=<<))
 
 import           Data.Map      (Map)
 import qualified Data.Map      as Map
@@ -22,6 +22,19 @@ getZ3Var name scope = fromJust $ Map.lookup name scope
 
 width :: Int
 width = 32
+
+bound :: Int
+bound = 1000
+
+unroll :: Int -> Cmd -> Cmd
+unroll bound = \case
+  While cond body -> unrollLoop bound (While cond body)
+  c_1 `Seq` c_2   -> unroll bound c_1 `Seq` unroll bound c_2
+  If cond c_1 c_2 -> If cond (unroll bound c_1) (unroll bound c_2)
+  cmd             -> cmd
+  where unrollLoop 0 _                      = Skip
+        unrollLoop n loop@(While cond body) = If cond (body `Seq` loop) Skip
+
 
 op :: (AST -> AST -> Z3 AST) -> Z3 AST -> Z3 AST -> Z3 AST
 op f a b = do a' <- a; b' <- b; f a' b'
@@ -50,21 +63,28 @@ bexp scope = \case
                      Z3.mkAnd [b_1, b_2]
   Not b        -> Z3.mkNot =<< bexp scope b
 
-cmd :: Bound -> Vars -> Cmd -> Z3 Vars
-cmd bound scope = \case
-  Skip            -> return scope
-  Set name val    -> do newVal <- aexp scope val
-                        newVar <- Z3.mkFreshBvVar (show name) width
-                        constraint <- Z3.mkEq newVar newVal
-                        Z3.assert constraint
-                        return $ Map.insert name newVar scope
-  Seq c_1 c_2     -> do scope'  <- cmd (bound - 1) scope c_1
-                        scope'' <- cmd (bound - 1) scope' c_2
-                        return scope''
-  If cond c_1 c_2 -> do cond' <- bexp scope cond
-                        scope' <- cmd (bound - 1) scope c_1
-                        scope'' <- cmd (bound - 1) scope c_2
-                        makePhis cond' scope scope' scope''
+                  -- TODO: Idea for bounds: create a *list* of
+                  -- assertions and then only take up to n
+                  -- steps. Shows off laziness! Probably won't work
+                  -- with the Z3 monad though :/.
+
+cmd :: Vars -> Cmd -> Z3 Vars
+cmd scope = compile . unroll bound
+  where compile = \case
+          Skip            -> return scope
+          Set name val    -> do newVal <- aexp scope val
+                                newVar <- Z3.mkFreshBvVar (show name) width
+                                constraint <- Z3.mkEq newVar newVal
+                                Z3.assert constraint
+                                return $ Map.insert name newVar scope
+          Seq c_1 c_2     -> do scope'  <- cmd scope c_1
+                                scope'' <- cmd scope' c_2
+                                return scope''
+          If cond c_1 c_2 -> do cond'   <- bexp scope cond
+                                scope'  <- cmd scope c_1
+                                scope'' <- cmd scope c_2
+                                makePhis cond' scope scope' scope''
+          _               -> error "Loops have to be unrolled before compiling to SMT!"
 
 -- | Encodes the result of a conditional by asserting new values for
 -- each variable depending on which branch was taken. Example:
