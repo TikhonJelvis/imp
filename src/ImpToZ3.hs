@@ -99,7 +99,7 @@ forwards values program = do initialScope <- makeVars $ Map.keys values
                              cmd initialScope program
                              return ()
 
-opts = Z3.opt "MODEL" True +? Z3.opt "MODEL_COMPLETION" True
+opts = Z3.opt "MODEL" True
 
 -- | Encodes the result of a conditional by asserting new values for
 -- each variable depending on which branch was taken. Example:
