@@ -34,7 +34,7 @@ width :: Int
 width = 32
 
 bound :: Int
-bound = 10
+bound = 30
 
 unroll :: Int -> Cmd -> Cmd
 unroll bound = \case
@@ -80,12 +80,10 @@ cmd inputs = compile inputs . unroll bound
           Skip            -> return scope
           Set name val    -> do newVal <- aexp scope val
                                 newVar <- makeVar name
-                                constraint <- Z3.mkEq newVar newVal
-                                Z3.assert constraint
+                                Z3.assert =<< Z3.mkEq newVar newVal
                                 return $ Map.insert name newVar scope
           Seq c_1 c_2     -> do scope'  <- compile scope c_1
-                                scope'' <- compile scope' c_2
-                                return scope''
+                                compile scope' c_2
           If cond c_1 c_2 -> do cond'   <- bexp scope cond
                                 scope'  <- compile scope c_1
                                 scope'' <- compile scope c_2
@@ -95,14 +93,19 @@ cmd inputs = compile inputs . unroll bound
 constrainVars :: Map Name Int -> Vars -> Z3 ()
 constrainVars values scope = forM_ (Map.keys values) $ \ name -> do
   val <- Z3.mkBvNum width (values ! name)
-  eq  <- Z3.mkEq (scope ! name) val
-  Z3.assert eq
+  Z3.assert =<< Z3.mkEq (scope ! name) val
 
 forwards :: Map Name Int -> Cmd -> Z3 ()
 forwards values program = do initialScope <- makeVars $ Map.keys values
                              constrainVars values initialScope
                              cmd initialScope program
                              return ()
+
+backwards :: Map Name Int -> Cmd -> Z3 ()
+backwards values program = do initialScope <- makeVars $ Map.keys values
+                              finalScope   <- cmd initialScope program
+                              constrainVars values finalScope
+                              return ()
 
 opts = Z3.opt "MODEL" True
 

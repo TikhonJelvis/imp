@@ -1,17 +1,22 @@
 module Imp where
 
+import           Data.Int    (Int32)
+import           Data.String (IsString (..))
+
 -- | The int parameter makes it easy to create new versions of a
 -- variable.
 newtype Name = Name String deriving (Eq, Ord)
 
 instance Show Name where show (Name s) = s
 
-at :: Name -> Int -> Name
+instance IsString Name where fromString = Name
+
+at :: Name -> Int32 -> Name
 at (Name str) step = Name $ str ++ "_" ++ show step
 
-type Scope = [(Name, Int)]
+type Scope = [(Name, Int32)]
 
-data AExp = Lit Int
+data AExp = Lit Int32
           | Var Name
           | AExp :+: AExp
           | AExp :-: AExp
@@ -32,7 +37,7 @@ data Cmd = Skip
          | If BExp Cmd Cmd
          | While BExp Cmd deriving (Show, Eq)
 
-evalAExp :: Scope -> AExp -> Maybe Int
+evalAExp :: Scope -> AExp -> Maybe Int32
 evalAExp _ (Lit i)        = Just i
 evalAExp scope (Var name) = lookup name scope
 evalAExp scope (e_1 :+: e_2) =
