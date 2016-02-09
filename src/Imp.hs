@@ -11,9 +11,6 @@ instance Show Name where show (Name s) = s
 
 instance IsString Name where fromString = Name
 
-at :: Name -> Int32 -> Name
-at (Name str) step = Name $ str ++ "_" ++ show step
-
 type Scope = [(Name, Int32)]
 
 data AExp = Lit Int32
