@@ -1,6 +1,6 @@
 # Analyzing IMP Programs
 
-Some code for analyzing IMP programs with Z3, originally written for my Compose 2016 talk.
+Some code for analyzing IMP programs with Z3, originally written for my [Compose 2016 talk](http://jelv.is/talks/compose-2016).
 
 IMP is a *tiny* imperative language usually used to teach about formal semantics. Its operational semantics are particularly simple, which also makes it a great candidate to compile to Z3.
 
